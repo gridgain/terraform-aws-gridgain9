@@ -1,0 +1,47 @@
+%{ if gridgain_config_defined ~}
+#cloud-config
+# vim: syntax=yaml
+
+write_files:
+%{ if gridgain_license_defined ~}
+  - path: /etc/gridgain9db/gridgain-license.conf
+    encoding: gzip
+    owner: gg_rw_user:gg_rw_user
+    content: !!binary |
+      ${gridgain_license}
+%{ endif ~}
+  - path: /etc/gridgain9db/gridgain-config.conf
+    encoding: gzip
+    owner: gg_rw_user:gg_rw_user
+    content: !!binary |
+      ${gridgain_config}
+  - path: /etc/gridgain9db/gridgain.java.util.logging.properties
+    encoding: gzip
+    owner: gg_rw_user:gg_rw_user
+    content: !!binary |
+      ${gridgain_logging}
+%{ if ssl_enable ~}
+  - path: /etc/gridgain9db/ssl/server.crt
+    encoding: gzip
+    owner: gg_rw_user:gg_rw_user
+    content: !!binary |
+      ${gridgain_ssl_cert}
+  - path: /etc/gridgain9db/ssl/server.key
+    encoding: gzip
+    owner: gg_rw_user:gg_rw_user
+    content: !!binary |
+      ${gridgain_ssl_key}
+%{ endif ~}
+
+
+runcmd:
+%{ if ssl_enable ~}
+  - openssl pkcs12 -export -in /etc/gridgain9db/ssl/server.crt -inkey /etc/gridgain9db/ssl/server.key -name root -out /etc/gridgain9db/ssl/server.p12 -password pass:${keystore_password}
+  - ln -s /etc/gridgain9db/ssl/server.p12 /etc/gridgain9db/ssl/server.jks
+  - rm -f /etc/gridgain9db/ssl/server.crt /etc/gridgain9db/ssl/server.key
+  - chmod 0640 /etc/gridgain9db/ssl/*
+  - chown -R gg_rw_user:gg_rw_user /etc/gridgain9db/ssl
+%{ endif ~}
+  - systemctl restart gridgain9db
+  - systemctl enable gridgain9db
+%{ endif ~}
