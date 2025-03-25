@@ -14,6 +14,7 @@ locals {
   ip_map                   = { for item in local.ip_zip : item.public_ip => item.private_ip }
   gridgain_config_defined  = length(trimspace(var.gridgain_config)) > 0
   gridgain_license_defined = length(trimspace(var.gridgain_license)) > 0
+  metastore_group          = join(",",[for i in range(var.nodes_count) : format("node%s", i)])
 }
 
 data "aws_region" "this" {}
@@ -45,6 +46,14 @@ resource "aws_eip_association" "eipa" {
   network_interface_id = aws_network_interface.eni[count.index].id
 }
 
+data "template_file" "gridgain_config" {
+  template = var.gridgain_config
+  vars = {
+    cluster_nlb_dns = aws_lb.cluster.dns_name
+    keystore_password = var.keystore_password
+  }
+}
+
 resource "aws_instance" "this" {
   count = var.nodes_count
 
@@ -54,18 +63,21 @@ resource "aws_instance" "this" {
   user_data = templatefile("${path.module}/templates/user-data.yaml", {
     gridgain_config_defined  = local.gridgain_config_defined
     gridgain_license_defined = local.gridgain_license_defined
-
+    cluster_lb_dns   = aws_lb.this.dns_name
     gridgain_license = base64gzip(var.gridgain_license)
-    gridgain_config  = base64gzip(var.gridgain_config)
+    gridgain_config  = base64gzip(data.template_file.gridgain_config.rendered)
     gridgain_logging = base64gzip(var.gridgain_logging)
     public_ips       = local.public_ips
     private_ips      = local.private_ips
     node_id          = count.index
+    nodes_count      = var.nodes_count
 
     ssl_enable            = var.ssl_enable
     gridgain_ssl_cert     = base64gzip(var.gridgain_ssl_cert)
     gridgain_ssl_key      = base64gzip(var.gridgain_ssl_key)
     keystore_password     = var.keystore_password
+    metastore_group       = local.metastore_group
+    cluster_name          = var.name
   })
   user_data_replace_on_change = true
   availability_zone           = var.zones[count.index % local.az_count]

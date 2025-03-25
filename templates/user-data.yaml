@@ -41,7 +41,13 @@ runcmd:
   - rm -f /etc/gridgain9db/ssl/server.crt /etc/gridgain9db/ssl/server.key
   - chmod 0640 /etc/gridgain9db/ssl/*
   - chown -R gg_rw_user:gg_rw_user /etc/gridgain9db/ssl
-%{ endif ~}
-  - systemctl restart gridgain9db
-  - systemctl enable gridgain9db
+%{ endif ~} 
+  - sed -i -e 's/^\( *NODE_NAME *= *\).*/\1node${node_id}/' /etc/gridgain9db/vars.env
+  - systemctl stop gridgain9db
+  - rm -rf /var/lib/gridgain9db/*  
+  - systemctl start gridgain9db
+%{ if node_id == 0 }
+  - while [ "$(gridgain9 cluster status | grep -oP '\[nodes:\ \K([0-9]+)')" != ${nodes_count} ]; do echo "Waiting to the cluster node up and running..."; done
+  - gridgain9 cluster init --name=${cluster_name} --metastorage-group ${metastore_group} --url=http://${cluster_lb_dns}:10300 --config-files=/etc/gridgain9db/gridgain-license.conf
+%{ endif }
 %{ endif ~}
