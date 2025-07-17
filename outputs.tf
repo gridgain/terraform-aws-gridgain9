@@ -171,6 +171,6 @@ output "iam_instance_profile_unique" {
 output "ssm_connect_commands" {
   description = "The AWS CLI command to connect to the instance using Session Manager"
   value = [
-    for instance in aws_instance.this : "aws ssm start-session --target ${instance.id} --region ${data.aws_region.this.name}"
+    for instance in aws_instance.this : "aws ssm start-session --target ${instance.id} --region ${data.aws_region.this.region}"
   ]
 }
