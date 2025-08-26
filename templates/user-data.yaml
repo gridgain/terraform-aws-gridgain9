@@ -9,6 +9,11 @@ write_files:
     owner: gg_rw_user:gg_rw_user
     content: !!binary |
       ${gridgain_license}
+%{ else ~}
+  - path: /etc/gridgain9db/gridgain-license.conf
+    encoding: gzip
+    owner: gg_rw_user:gg_rw_user
+    content: ""
 %{ endif ~}
   - path: /etc/gridgain9db/gridgain-config.conf
     encoding: gzip
@@ -41,7 +46,9 @@ runcmd:
   - rm -f /etc/gridgain9db/ssl/server.crt /etc/gridgain9db/ssl/server.key
   - chmod 0640 /etc/gridgain9db/ssl/*
   - chown -R gg_rw_user:gg_rw_user /etc/gridgain9db/ssl
-%{ endif ~} 
+%{ endif ~}
+  - systemctl stop gridgain-autostart
+  - systemctl disable gridgain-autostart
   - sed -i -e 's/^\( *NODE_NAME *= *\).*/\1node${node_id}/' /etc/gridgain9db/vars.env
   - systemctl stop gridgain9db
   - rm -rf /var/lib/gridgain9db/*  
